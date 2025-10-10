@@ -26,6 +26,14 @@ export class SLAPLookupService implements LookupService {
     const domain = Utils.toUTF8(result.fields[2])
     const service = Utils.toUTF8(result.fields[3])
     if (protocol !== 'SLAP') return
+
+    // Check for duplicates before storing
+    const isDuplicate = await this.storage.hasDuplicateRecord(identityKey, domain, service)
+    if (isDuplicate) {
+      console.log(`👏 Skipping duplicate SLAP record: ${domain} / ${service}`)
+      return
+    }
+
     await this.storage.storeSLAPRecord(txid, outputIndex, identityKey, domain, service)
   }
 

@@ -23,6 +23,22 @@ export class SLAPStorage {
   }
 
   /**
+   * Checks if a duplicate SLAP record exists with the same field values
+   * @param {string} identityKey identity key
+   * @param {string} domain domain name
+   * @param {string} service service name
+   * @returns {Promise<boolean>} true if a duplicate exists
+   */
+  async hasDuplicateRecord(identityKey: string, domain: string, service: string): Promise<boolean> {
+    const existingRecord = await this.slapRecords.findOne({
+      identityKey,
+      domain,
+      service
+    })
+    return existingRecord !== null
+  }
+
+  /**
    * Stores a SLAP record
    * @param {string} txid transaction id
    * @param {number} outputIndex index of the UTXO

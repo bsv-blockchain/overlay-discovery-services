@@ -23,6 +23,22 @@ export class SHIPStorage {
   }
 
   /**
+   * Checks if a duplicate SHIP record exists with the same field values
+   * @param {string} identityKey identity key
+   * @param {string} domain domain name
+   * @param {string} topic topic name
+   * @returns {Promise<boolean>} true if a duplicate exists
+   */
+  async hasDuplicateRecord(identityKey: string, domain: string, topic: string): Promise<boolean> {
+    const existingRecord = await this.shipRecords.findOne({
+      identityKey,
+      domain,
+      topic
+    })
+    return existingRecord !== null
+  }
+
+  /**
    * Stores a SHIP record
    * @param {string} txid transaction id
    * @param {number} outputIndex index of the UTXO
