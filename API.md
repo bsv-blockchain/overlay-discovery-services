@@ -20,9 +20,13 @@ Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Variables](
 
 ```ts
 export interface SHIPQuery {
+    findAll?: boolean;
     domain?: string;
     topics?: string[];
     identityKey?: string;
+    limit?: number;
+    skip?: number;
+    sortOrder?: "asc" | "desc";
 }
 ```
 
@@ -49,9 +53,13 @@ Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Variables](
 
 ```ts
 export interface SLAPQuery {
+    findAll?: boolean;
     domain?: string;
     service?: string;
     identityKey?: string;
+    limit?: number;
+    skip?: number;
+    sortOrder?: "asc" | "desc";
 }
 ```
 
@@ -111,11 +119,13 @@ within the overlay network.
 
 ```ts
 export class SHIPLookupService implements LookupService {
+    admissionMode: AdmissionMode = "locking-script";
+    spendNotificationMode: SpendNotificationMode = "none";
     constructor(public storage: SHIPStorage) 
-    async outputAdded?(txid: string, outputIndex: number, outputScript: Script, topic: string): Promise<void> 
-    async outputSpent?(txid: string, outputIndex: number, topic: string): Promise<void> 
-    async outputDeleted?(txid: string, outputIndex: number, topic: string): Promise<void> 
-    async lookup(question: LookupQuestion): Promise<LookupAnswer | LookupFormula> 
+    async outputAdmittedByTopic(payload: OutputAdmittedByTopic): Promise<void> 
+    async outputSpent(payload: OutputSpent): Promise<void> 
+    async outputEvicted(txid: string, outputIndex: number): Promise<void> 
+    async lookup(question: LookupQuestion): Promise<LookupFormula> 
     async getDocumentation(): Promise<string> 
     async getMetaData(): Promise<{
         name: string;
@@ -129,112 +139,6 @@ export class SHIPLookupService implements LookupService {
 
 See also: [SHIPStorage](#class-shipstorage)
 
-<details>
-
-<summary>Class SHIPLookupService Details</summary>
-
-#### Method getDocumentation
-
-Returns documentation specific to this overlay lookup service.
-
-```ts
-async getDocumentation(): Promise<string> 
-```
-
-Returns
-
-A promise that resolves to the documentation string.
-
-#### Method getMetaData
-
-Returns metadata associated with this lookup service.
-
-```ts
-async getMetaData(): Promise<{
-    name: string;
-    shortDescription: string;
-    iconURL?: string;
-    version?: string;
-    informationURL?: string;
-}> 
-```
-
-Returns
-
-A promise that resolves to an object containing metadata.
-
-#### Method lookup
-
-Answers a lookup query.
-
-```ts
-async lookup(question: LookupQuestion): Promise<LookupAnswer | LookupFormula> 
-```
-
-Returns
-
-A promise that resolves to a lookup answer or formula.
-
-Argument Details
-
-+ **question**
-  + The lookup question to be answered.
-
-#### Method outputAdded
-
-Handles the addition of a new output to the topic.
-
-```ts
-async outputAdded?(txid: string, outputIndex: number, outputScript: Script, topic: string): Promise<void> 
-```
-
-Argument Details
-
-+ **txid**
-  + The transaction ID containing the output.
-+ **outputIndex**
-  + The index of the output in the transaction.
-+ **outputScript**
-  + The script of the output to be processed.
-+ **topic**
-  + The topic associated with the output.
-
-#### Method outputDeleted
-
-Handles the deletion of an output in the topic.
-
-```ts
-async outputDeleted?(txid: string, outputIndex: number, topic: string): Promise<void> 
-```
-
-Argument Details
-
-+ **txid**
-  + The transaction ID of the deleted output.
-+ **outputIndex**
-  + The index of the deleted output.
-+ **topic**
-  + The topic associated with the deleted output.
-
-#### Method outputSpent
-
-Handles the spending of an output in the topic.
-
-```ts
-async outputSpent?(txid: string, outputIndex: number, topic: string): Promise<void> 
-```
-
-Argument Details
-
-+ **txid**
-  + The transaction ID of the spent output.
-+ **outputIndex**
-  + The index of the spent output.
-+ **topic**
-  + The topic associated with the spent output.
-
-</details>
-
 Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Variables](#variables)
 
 ---
@@ -246,10 +150,11 @@ Implements a storage engine for SHIP protocol
 export class SHIPStorage {
     constructor(private readonly db: Db) 
     async ensureIndexes(): Promise<void> 
+    async hasDuplicateRecord(identityKey: string, domain: string, topic: string): Promise<boolean> 
     async storeSHIPRecord(txid: string, outputIndex: number, identityKey: string, domain: string, topic: string): Promise<void> 
     async deleteSHIPRecord(txid: string, outputIndex: number): Promise<void> 
     async findRecord(query: SHIPQuery): Promise<UTXOReference[]> 
-    async findAll(): Promise<UTXOReference[]> 
+    async findAll(limit?: number, skip?: number, sortOrder?: "asc" | "desc"): Promise<UTXOReference[]> 
 }
 ```
 
@@ -300,13 +205,22 @@ async ensureIndexes(): Promise<void>
 Returns all results tracked by the overlay
 
 ```ts
-async findAll(): Promise<UTXOReference[]> 
+async findAll(limit?: number, skip?: number, sortOrder?: "asc" | "desc"): Promise<UTXOReference[]> 
 ```
 See also: [UTXOReference](#interface-utxoreference)
 
 Returns
 
 returns matching UTXO references
+
+Argument Details
+
++ **limit**
+  + Optional limit for pagination
++ **skip**
+  + Optional skip for pagination
++ **sortOrder**
+  + Optional sort order
 
 #### Method findRecord
 
@@ -324,7 +238,28 @@ Returns matching UTXO references.
 Argument Details
 
 + **query**
-  + The query object which may contain properties for domain, topics, and/or identityKey.
+  + The query object which may contain properties for domain, topics, identityKey, limit, and skip.
+
+#### Method hasDuplicateRecord
+
+Checks if a duplicate SHIP record exists with the same field values
+
+```ts
+async hasDuplicateRecord(identityKey: string, domain: string, topic: string): Promise<boolean> 
+```
+
+Returns
+
+true if a duplicate exists
+
+Argument Details
+
++ **identityKey**
+  + identity key
++ **domain**
+  + domain name
++ **topic**
+  + topic name
 
 #### Method storeSHIPRecord
 
@@ -442,11 +377,13 @@ records for lookup purposes.
 
 ```ts
 export class SLAPLookupService implements LookupService {
+    admissionMode: AdmissionMode = "locking-script";
+    spendNotificationMode: SpendNotificationMode = "none";
     constructor(public storage: SLAPStorage) 
-    async outputAdded?(txid: string, outputIndex: number, outputScript: Script, topic: string): Promise<void> 
-    async outputSpent?(txid: string, outputIndex: number, topic: string): Promise<void> 
-    async outputDeleted?(txid: string, outputIndex: number, topic: string): Promise<void> 
-    async lookup(question: LookupQuestion): Promise<LookupAnswer | LookupFormula> 
+    async outputAdmittedByTopic(payload: OutputAdmittedByTopic): Promise<void> 
+    async outputSpent(payload: OutputSpent): Promise<void> 
+    async outputEvicted(txid: string, outputIndex: number): Promise<void> 
+    async lookup(question: LookupQuestion): Promise<LookupFormula> 
     async getDocumentation(): Promise<string> 
     async getMetaData(): Promise<{
         name: string;
@@ -460,112 +397,6 @@ export class SLAPLookupService implements LookupService {
 
 See also: [SLAPStorage](#class-slapstorage)
 
-<details>
-
-<summary>Class SLAPLookupService Details</summary>
-
-#### Method getDocumentation
-
-Returns documentation specific to this overlay lookup service.
-
-```ts
-async getDocumentation(): Promise<string> 
-```
-
-Returns
-
-A promise that resolves to the documentation string.
-
-#### Method getMetaData
-
-Returns metadata associated with this lookup service.
-
-```ts
-async getMetaData(): Promise<{
-    name: string;
-    shortDescription: string;
-    iconURL?: string;
-    version?: string;
-    informationURL?: string;
-}> 
-```
-
-Returns
-
-A promise that resolves to an object containing metadata.
-
-#### Method lookup
-
-Answers a lookup query.
-
-```ts
-async lookup(question: LookupQuestion): Promise<LookupAnswer | LookupFormula> 
-```
-
-Returns
-
-A promise that resolves to a lookup answer or formula.
-
-Argument Details
-
-+ **question**
-  + The lookup question to be answered.
-
-#### Method outputAdded
-
-Handles the addition of a new output to the topic.
-
-```ts
-async outputAdded?(txid: string, outputIndex: number, outputScript: Script, topic: string): Promise<void> 
-```
-
-Argument Details
-
-+ **txid**
-  + The transaction ID containing the output.
-+ **outputIndex**
-  + The index of the output in the transaction.
-+ **outputScript**
-  + The script of the output to be processed.
-+ **topic**
-  + The topic associated with the output.
-
-#### Method outputDeleted
-
-Handles the deletion of an output in the topic.
-
-```ts
-async outputDeleted?(txid: string, outputIndex: number, topic: string): Promise<void> 
-```
-
-Argument Details
-
-+ **txid**
-  + The transaction ID of the deleted output.
-+ **outputIndex**
-  + The index of the deleted output.
-+ **topic**
-  + The topic associated with the deleted output.
-
-#### Method outputSpent
-
-Handles the spending of an output in the topic.
-
-```ts
-async outputSpent?(txid: string, outputIndex: number, topic: string): Promise<void> 
-```
-
-Argument Details
-
-+ **txid**
-  + The transaction ID of the spent output.
-+ **outputIndex**
-  + The index of the spent output.
-+ **topic**
-  + The topic associated with the spent output.
-
-</details>
-
 Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Variables](#variables)
 
 ---
@@ -577,10 +408,11 @@ Implements a storage engine for SLAP protocol
 export class SLAPStorage {
     constructor(private readonly db: Db) 
     async ensureIndexes(): Promise<void> 
+    async hasDuplicateRecord(identityKey: string, domain: string, service: string): Promise<boolean> 
     async storeSLAPRecord(txid: string, outputIndex: number, identityKey: string, domain: string, service: string): Promise<void> 
     async deleteSLAPRecord(txid: string, outputIndex: number): Promise<void> 
     async findRecord(query: SLAPQuery): Promise<UTXOReference[]> 
-    async findAll(): Promise<UTXOReference[]> 
+    async findAll(limit?: number, skip?: number, sortOrder?: "asc" | "desc"): Promise<UTXOReference[]> 
 }
 ```
 
@@ -631,13 +463,22 @@ async ensureIndexes(): Promise<void>
 Returns all results tracked by the overlay
 
 ```ts
-async findAll(): Promise<UTXOReference[]> 
+async findAll(limit?: number, skip?: number, sortOrder?: "asc" | "desc"): Promise<UTXOReference[]> 
 ```
 See also: [UTXOReference](#interface-utxoreference)
 
 Returns
 
 returns matching UTXO references
+
+Argument Details
+
++ **limit**
+  + Optional limit for pagination
++ **skip**
+  + Optional skip for pagination
++ **sortOrder**
+  + Optional sort order
 
 #### Method findRecord
 
@@ -656,6 +497,27 @@ Argument Details
 
 + **query**
   + The query object which may contain properties for domain, service, and/or identityKey.
+
+#### Method hasDuplicateRecord
+
+Checks if a duplicate SLAP record exists with the same field values
+
+```ts
+async hasDuplicateRecord(identityKey: string, domain: string, service: string): Promise<boolean> 
+```
+
+Returns
+
+true if a duplicate exists
+
+Argument Details
+
++ **identityKey**
+  + identity key
++ **domain**
+  + domain name
++ **service**
+  + service name
 
 #### Method storeSLAPRecord
 
@@ -769,8 +631,8 @@ Implements the Advertiser interface for managing SHIP and SLAP advertisements us
 
 ```ts
 export class WalletAdvertiser implements Advertiser {
-    constructor(public chain: "main" | "test", public privateKey: string, public storageURL: string, public advertisableURI: string) 
-    async initWithEngine(engine: Engine): Promise<void> 
+    constructor(public chain: "main" | "test", public privateKey: string, public storageURL: string, public advertisableURI: string, public lookupResolverConfig?: LookupResolverConfig) 
+    async init(): Promise<void> 
     async createAdvertisements(adsData: AdvertisementData[]): Promise<TaggedBEEF> 
     async findAllAdvertisements(protocol: "SHIP" | "SLAP"): Promise<Advertisement[]> 
     async revokeAdvertisements(advertisements: Advertisement[]): Promise<TaggedBEEF> 
@@ -787,7 +649,7 @@ export class WalletAdvertiser implements Advertiser {
 Constructs a new WalletAdvertiser instance.
 
 ```ts
-constructor(public chain: "main" | "test", public privateKey: string, public storageURL: string, public advertisableURI: string) 
+constructor(public chain: "main" | "test", public privateKey: string, public storageURL: string, public advertisableURI: string, public lookupResolverConfig?: LookupResolverConfig) 
 ```
 
 Argument Details
@@ -800,6 +662,8 @@ Argument Details
   + The URL of the UTXO storage server for the Wallet.
 + **advertisableURI**
   + The advertisable URI where services are made available.
++ **lookupResolverConfig**
+  + — If provided, overrides the resolver config used for lookups. Otherwise defaults to the network preset associated with the wallet's network.
 
 #### Method createAdvertisements
 
@@ -839,24 +703,13 @@ Argument Details
 + **topic**
   + Whether SHIP or SLAP advertisements should be returned.
 
-#### Method initWithEngine
+#### Method init
 
-Initializes the wallet asynchronously and binds the advertiser with its Engine.
-
-Sets the Engine instance to be used by this WalletAdvertiser. This method allows for late
-binding of the Engine, thus avoiding circular dependencies during instantiation. The Engine
-provides necessary context with the relevant topic managers and lookup services,
-as well as the lookup function used for querying advertisements.
+Initializes the wallet asynchronously.
 
 ```ts
-async initWithEngine(engine: Engine): Promise<void> 
+async init(): Promise<void> 
 ```
-
-Argument Details
-
-+ **engine**
-  + The Engine instance to be associated with this NinjaAdvertiser. The Engine should
-be fully initialized before being passed to this method to ensure all functionalities are available.
 
 #### Method parseAdvertisement
 
