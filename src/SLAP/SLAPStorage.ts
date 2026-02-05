@@ -29,7 +29,7 @@ export class SLAPStorage {
    * @param {string} service service name
    * @returns {Promise<boolean>} true if a duplicate exists
    */
-  async hasDuplicateRecord(identityKey: string, domain: string, service: string): Promise<boolean> {
+  async hasDuplicateRecord (identityKey: string, domain: string, service: string): Promise<boolean> {
     const existingRecord = await this.slapRecords.findOne({
       identityKey,
       domain,
