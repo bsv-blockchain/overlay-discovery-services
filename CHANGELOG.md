@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file. The format 
 ## Table of Contents
 
 - [Unreleased](#unreleased)
-- [1.0.0 - YYYY-MM-DD](#100---yyyy-mm-dd)
+- [1.6.1 - 2026-02-05](#161---2026-02-05)
 
 ## [Unreleased]
 
@@ -29,37 +29,10 @@ All notable changes to this project will be documented in this file. The format 
 
 ---
 
-## [1.0.0] - YYYY-MM-DD
+## [1.6.1] - 2026-02-05
 
-### Added
-- Initial release of the BSV Blockchain Overlay Services Engine.
+### Changed
+- Updated dependencies
 
 ---
 
-### Template for New Releases:
-
-Replace `X.X.X` with the new version number and `YYYY-MM-DD` with the release date:
-
-```
-## [X.X.X] - YYYY-MM-DD
-
-### Added
-- 
-
-### Changed
-- 
-
-### Deprecated
-- 
-
-### Removed
-- 
-
-### Fixed
-- 
-
-### Security
-- 
-```
-
-Use this template as the starting point for each new version. Always update the "Unreleased" section with changes as they're implemented, and then move them under the new version header when that version is released.

@@ -29,7 +29,7 @@ export class SHIPStorage {
    * @param {string} topic topic name
    * @returns {Promise<boolean>} true if a duplicate exists
    */
-  async hasDuplicateRecord(identityKey: string, domain: string, topic: string): Promise<boolean> {
+  async hasDuplicateRecord (identityKey: string, domain: string, topic: string): Promise<boolean> {
     const existingRecord = await this.shipRecords.findOne({
       identityKey,
       domain,
